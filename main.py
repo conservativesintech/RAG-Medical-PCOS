@@ -64,15 +64,14 @@ def main():
 
             # F1 Score
             f1 = compute_f1(reference, prediction)
-
             # Semantic similarity for hallucination labeling
             emb_ref = embed_model.encode(reference, convert_to_tensor=True)
             emb_pred = embed_model.encode(prediction, convert_to_tensor=True)
             similarity = float(util.cos_sim(emb_pred, emb_ref)[0])
 
-            if similarity >= 0.85:
+            if similarity >= 0.50:
                 label = "Grounded"
-            elif similarity >= 0.5:
+            elif similarity >= 0.30:
                 label = "Partially Hallucinated"
             else:
                 label = "Hallucinated"

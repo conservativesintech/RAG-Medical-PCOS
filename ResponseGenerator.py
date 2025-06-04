@@ -13,7 +13,7 @@ Answer each question clearly and concisely based only on the passage."
 QUESTION: {query}
 PASSAGE: {escaped}
 
-ANSWER:"""        
+ANSWER:"""     
         try:
             inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
             outputs = self.model.generate(
