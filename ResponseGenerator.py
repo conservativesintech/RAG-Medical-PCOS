@@ -9,13 +9,14 @@ class ResponseGenerator:
         escaped = context.strip()
         prompt = f"""You are a helpful and informative bot that answers questions using text from the reference passage included below.
 Be sure to respond in a complete sentence, being comprehensive, including all relevant background information.
-Answer each question clearly and concisely based only on the passage."
+Answer each question clearly and concisely based only on the passage.
 QUESTION: {query}
 PASSAGE: {escaped}
 
 ANSWER:"""     
         try:
-            inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+            inputs = self.tokenizer(prompt, return_tensors="pt")
+            inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
             outputs = self.model.generate(
                 **inputs
             )
