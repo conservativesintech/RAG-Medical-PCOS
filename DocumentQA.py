@@ -8,46 +8,28 @@ class DocumentQA:
         self.retriever = retriever
         self.generator = generator
         self.max_context_length = max_context_length
-
-    def get_answer(self, query_text, k=10):
+    
+    def get_answer(self, query_text, k=5):
         contexts = self.retriever.query(query_text, k=k)
         if not contexts:
-            return "No relevant context found."
+            return {
+            "query": query_text,
+            "answer": "No relevant context found.",
+            "retrieved_chunks": []
+        }
         combined_context = "\n\n".join([context["text"] for context in contexts])
         if len(combined_context) > self.max_context_length:
             combined_context = combined_context[:self.max_context_length]
-            
-        return self.generator.generate_response(query_text, combined_context)
-
-    # def hallucination_test(self, query_text, k=10):
-    #     """
-    #     Returns a dict with the question, generated answer, and the top-k retrieved document chunks.
-    #     Useful for manual hallucination analysis.
-    #     """
-    #     contexts = self.retriever.query(query_text, k=k)
-    #     if not contexts:
-    #         return {
-    #             "query": query_text,
-    #             "answer": "No relevant context found.",
-    #             "retrieved_chunks": []
-    #         }
-
-    #     combined_context = "\n\n".join([context["text"] for context in contexts])
-    #     if len(combined_context) > self.max_context_length:
-    #         combined_context = combined_context[:self.max_context_length]
         
-    #     answer = self.generator.generate_response(query_text, combined_context)
-
-    #     # Prepare the chunks text for manual tracing
-    #     retrieved_texts = [{
-    #         "text": context["text"],
-    #         "file": context["file"],
-    #         "pages": context["pages"]
-    #     } for context in contexts]
-
-    #     return {
-    #         "query": query_text,
-    #         "answer": answer,
-    #         "retrieved_chunks": retrieved_texts
-    #     }
-    
+        answer = self.generator.generate_response(query_text, combined_context)
+        
+        retrieved_chunks = [{
+        "text": context["text"],
+        "file": context["file"],
+        "pages": context["pages"]} for context in contexts]
+        
+        return {
+            "query": query_text,
+            "answer": answer,
+            "retrieved_chunks": retrieved_chunks
+        }

@@ -10,6 +10,12 @@ from nltk import word_tokenize
 from sentence_transformers import SentenceTransformer, util
 from bert_score import score as bert_score
 import torch
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--retrieval_k", type=int, default=5, help="Top K documents to retrieve")
+args = parser.parse_args()
+
 def compute_f1(reference, prediction):
     ref_tokens = set(word_tokenize(reference.lower()))
     pred_tokens = set(word_tokenize(prediction.lower()))
@@ -31,7 +37,7 @@ def main():
     qa_system = DocumentQA(retriever, generator)
     embed_model = SentenceTransformer('all-MiniLM-L6-v2')
 
-    with open("pcos_qna.json", "r", encoding="utf-8") as file:
+    with open("pcos_qna_evidence_based.json", "r", encoding="utf-8") as file:
         pcos_qna = json.load(file)
 
     smooth = SmoothingFunction().method1
@@ -43,19 +49,18 @@ def main():
 
     for question, reference in pcos_qna.items():
         try:
-            prediction = qa_system.get_answer(question)
+            result = qa_system.get_answer(question, k=args.retrieval_k)
+            prediction = result["answer"]
+            retrieved_chunks = result["retrieved_chunks"]  # Optional: use for debugging/hallucination tracing
 
             if not prediction or prediction.lower().strip() in ["", "i don't know", "not found in the passage."]:
                 prediction = "Not found in the passage."
-
-            # hallucination_result = qa_system.hallucination_test(question)
-            # retrieved_chunks = hallucination_result.get("retrieved_chunks", [])
 
             # BLEU-2 Score
             ref_tokens = word_tokenize(reference.lower())
             pred_tokens = word_tokenize(prediction.lower())
             bleu = sentence_bleu([ref_tokens], pred_tokens, weights=(0.5, 0.5), smoothing_function=smooth)
-            
+
             # ROUGE-L Score
             rouge_scores = rouge.score(reference, prediction)
             rouge_l = rouge_scores['rougeL'].fmeasure
@@ -70,14 +75,14 @@ def main():
             cosine_similarity = float(util.cos_sim(emb_pred, emb_ref)[0])
 
             # BERTScore
-            P, R, bertscore = bert_score([prediction], [reference], lang="en", rescale_with_baseline=True)
-            bertscore = bertscore[0].item()
+            P, R, bert_f1 = bert_score([prediction], [reference], lang="en", rescale_with_baseline=True, model_type='bert-base-uncased')
+            bertscore = bert_f1[0].item()
 
             # Label based on semantic cosine_similarity
-            if cosine_similarity >= 0.50:
+            if cosine_similarity >= 0.75:
                 label = "Grounded"
-            elif cosine_similarity >= 0.30:
-                label = "Partially Hallucinated"
+            elif cosine_similarity >= 0.50:
+                label = "Partially Grounded"
             else:
                 label = "Hallucinated"
 
@@ -89,11 +94,6 @@ def main():
             print(f"Cosine Similarity: {cosine_similarity:.4f}")
             print(f"HALLUCINATION LABEL (semantic): {label}")
 
-            # print("\nRetrieved Context Chunks (for analysis):")
-            # for i, chunk in enumerate(retrieved_chunks, start=1):
-                # print(f"Chunk {i}: {chunk['text'][:300]}")
-
-            # Save results
             result_data.append({
                 "question": question,
                 "generated_answer": prediction,
@@ -103,8 +103,8 @@ def main():
                 "f1": f1,
                 "bert_score": bertscore,
                 "cosine_similarity": cosine_similarity,
-                # "retrieved_chunks": retrieved_chunks,
-                "hallucination_label": label
+                "hallucination_label": label,
+                "retrieved_chunks": retrieved_chunks  # Optional if you want to save them
             })
 
             total_bleu += bleu
@@ -124,7 +124,7 @@ def main():
     print(f"Average ROUGE-L: {total_rougeL / count:.4f}")
     print(f"Average F1 Score: {total_f1 / count:.4f}")
     print(f"Average BERTScore: {total_bert_score / count:.4f}")
-
+    
     # Save all results
     with open("rag_results.json", "w", encoding="utf-8") as out_file:
         json.dump(result_data, out_file, indent=2, ensure_ascii=False)

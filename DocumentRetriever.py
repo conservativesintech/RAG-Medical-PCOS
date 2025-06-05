@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.CRITICAL)
 # Suppress INFO and WARNING logs from pdfplumber
 logging.getLogger("pdfminer").setLevel(logging.ERROR)
 logging.getLogger("pdfplumber").setLevel(logging.ERROR)
-
+import re
 # from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -41,7 +41,9 @@ class DocumentRetriever:
                         line.strip().isdigit()
                         )]
                     text = ' '.join(lines)
-                    # Step 2: Tokenize and chunk with overlap
+                    text = re.sub(r'\[\s?\d+(?:\s?,\s?\d+)*\s?\]', '', text)
+                    text = re.sub(r'\(\s?\d+(?:\s?,\s?\d+)*\s?\)', '', text)
+                    text = re.sub(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\.?\s*)?(?:[A-Za-z\s]+\.)?\s?\d{4};\d+\(.*?\):\d+(–\d+)?\.', '', text)
                     words = text.split()
                     overlap = int(self.chunk_size * 0.5)
                     stride = self.chunk_size - overlap
@@ -67,7 +69,7 @@ class DocumentRetriever:
         self.index = faiss.IndexFlatL2(dimension)
         self.index.add(embeddings_np)
     
-    def query(self, query_text, k=10):
+    def query(self, query_text, k=5):
         query_embedding = self.embeddings.encode([query_text], convert_to_tensor=False, show_progress_bar=True,batch_size=64)
         query_embedding_np = np.array(query_embedding)
         distances, indices = self.index.search(query_embedding_np, k)
