@@ -26,9 +26,7 @@ class ResponseGenerator:
 
     def generate_response(self, query, context):
         escaped = context.strip()
-        prompt = f"""You are a helpful and informative bot that answers questions using text from the reference passage included below.
-Be sure to respond in a complete sentence, being comprehensive, including all relevant background information.
-Answer each question clearly and concisely based only on the passage.
+        prompt = f"""You are a concise, scientific assistant. Answer clearly and accurately based on the provided passage..
 QUESTION: {query}
 PASSAGE: {escaped}
 

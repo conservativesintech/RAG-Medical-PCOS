@@ -33,11 +33,11 @@ class DocumentRetriever:
                 text = page.extract_text()
                 if text:
                     lines = text.split('\n')
-                    lines = [line for line in lines if not ( 
+                    lines = [line for line in lines if not (
                         line.strip().lower().startswith('doi') or 
                         'copyright' in line.lower() or 
                         'http' in line.lower() or 
-                        'figure' in line.lower() or 
+                        'figure' in line.lower() or
                         line.strip().isdigit()
                         )]
                     text = ' '.join(lines)

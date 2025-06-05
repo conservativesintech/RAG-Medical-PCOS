@@ -17,11 +17,11 @@ class DocumentQA:
             "answer": "No relevant context found.",
             "retrieved_chunks": []
         }
-        combined_context = "\n\n".join([context["text"] for context in contexts])
-        if len(combined_context) > self.max_context_length:
-            combined_context = combined_context[:self.max_context_length]
+        context = "\n\n".join([c["text"] for c in contexts])
+        if len(context) > self.max_context_length:
+            context = context[:self.max_context_length]
         
-        answer = self.generator.generate_response(query_text, combined_context)
+        answer = self.generator.generate_response(query_text, context)
         
         retrieved_chunks = [{
         "text": context["text"],
