@@ -1,5 +1,6 @@
+--extra-index-url https://download.pytorch.org/whl/cu118
 numpy
-faiss-cpu
+faiss-gpu
 sentence-transformers
 requests
 accelerate

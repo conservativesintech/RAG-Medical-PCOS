@@ -1,14 +1,14 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import re
 class ResponseGenerator:
-    def __init__(self, model_id="mistralai/Mistral-7B-Instruct-v0.1"):
+    def __init__(self, model_id="TinyLlama/TinyLlama-1.1B-Chat-v1.0"):
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
-        quant_config = BitsAndBytesConfig(load_in_4bit=True)
+        # quant_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4")
         self.model = AutoModelForCausalLM.from_pretrained(
             model_id,
             torch_dtype="auto",
             device_map="cpu",
-            quantization_config=quant_config,
+            # quantization_config=quant_config,
             resume_download=True
         )
         self.model.eval()
@@ -37,9 +37,12 @@ class ResponseGenerator:
 
     def generate_response(self, query, context):
         escaped = context.strip()
-        prompt = f"""Use only the PASSAGE below to answer the QUESTION. Just give a factual, concise, and medically accurate answer based strictly on the PASSAGE.
-QUESTION: {query}
-PASSAGE: {escaped}
+        prompt = f"""You are a helpful assistant that generates the 
+        ANSWER given a User Query and a retrieved Context. Do not generate
+        any new information; only retrieve information available in the Context.
+        
+User Query: {query}
+Context: {escaped}
 
 ANSWER:"""
         try:

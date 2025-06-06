@@ -31,14 +31,15 @@ class DocumentQA:
         return best_sentence.strip() + "."
 
     def get_answer(self, query_text, k=5):
-        # Try increasing flexibility if we can't fit the top-k in the token budget
+
         while k > 0:
             contexts = self.retriever.query(query_text, k=k)
             if not contexts:
                 return {
                     "query": query_text,
                     "answer": "No relevant context found.",
-                    "retrieved_chunks": []
+                    "retrieved_chunks": [],
+                    "k_used": 0
                 }
 
             # Rerank with semantic similarity
@@ -69,23 +70,23 @@ class DocumentQA:
                 break  # Success
             else:
                 k -= 1  # Try with fewer chunks
-                print(k)
-        # Use the final selected context
+                print(f"Trying with k={k}")
+
         context = tokenizer.decode(context_tokens, skip_special_tokens=True)
         answer = self.generator.generate_response(query_text, context)
 
-        # Fallback: if generation failed or is empty
         if not answer or answer.lower() in ["not found in the passage.", "sorry, something went wrong."]:
             answer = self._extractive_fallback(query_text, context)
 
-        retrieved_chunks = [{
+        retrieved_chunks = [ {
             "text": c["text"],
             "file": c["file"],
             "pages": c["pages"]
-        } for c in selected_chunks]
+        } for c in selected_chunks ]
 
         return {
             "query": query_text,
             "answer": answer,
-            "retrieved_chunks": retrieved_chunks
-            }
+            "retrieved_chunks": retrieved_chunks,
+            "k_used": k  # <-- Added this to track final k
+        }
