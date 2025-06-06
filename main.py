@@ -79,10 +79,8 @@ def main():
             bertscore = bert_f1[0].item()
 
             # Label based on semantic cosine_similarity
-            if cosine_similarity >= 0.75:
+            if cosine_similarity >= 0.79:
                 label = "Grounded"
-            elif cosine_similarity >= 0.50:
-                label = "Partially Grounded"
             else:
                 label = "Hallucinated"
 

@@ -15,7 +15,7 @@ import re
 from sentence_transformers import SentenceTransformer
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 class DocumentRetriever:
-    def __init__(self, data_dir='Data', chunk_size=150):
+    def __init__(self, data_dir='Data', chunk_size=500):
         self.data_dir = data_dir
         self.chunk_size = chunk_size
         self.pdf_paths = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith('.pdf')]
@@ -25,7 +25,7 @@ class DocumentRetriever:
         self.page_to_chunk_mapping = []
         self.index = None
         self.build_index()
-        
+    
     def load_documents(self, path):
         documents = []
         with pdfplumber.open(path) as pdf:
@@ -75,7 +75,7 @@ class DocumentRetriever:
         distances, indices = self.index.search(query_embedding_np, k)
         results = [self.format_result(i, distances[0][j]) for j, i in enumerate(indices[0])]
         return sorted(results, key=lambda x: x['distance'])
-
+    
     def format_result(self, index, distance):
         doc = self.documents[index]
         return {

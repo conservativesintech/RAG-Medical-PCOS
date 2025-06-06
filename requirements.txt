@@ -1,10 +1,10 @@
-PyPDF2
 numpy
 faiss-cpu
 sentence-transformers
 requests
 accelerate
-torch
 nltk
 rouge-score
 bert-score
+pdfplumber
+bitsandbytes
