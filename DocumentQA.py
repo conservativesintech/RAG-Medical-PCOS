@@ -13,7 +13,7 @@ class DocumentQA:
             self.max_context_tokens = generator.model.config.max_position_embeddings
         else:
             self.max_context_tokens = max_context_tokens
-
+        
         self.embed_model = SentenceTransformer('all-MiniLM-L6-v2')
 
     def _extractive_fallback(self, query, context):
@@ -32,7 +32,7 @@ class DocumentQA:
 
     def get_answer(self, query_text, k=5):
 
-        while k > 0:
+        while k >= 1:
             contexts = self.retriever.query(query_text, k=k)
             if not contexts:
                 return {
@@ -43,21 +43,31 @@ class DocumentQA:
                 }
 
             # Rerank with semantic similarity
-            contexts = sorted(
-                contexts,
-                key=lambda c: util.cos_sim(
-                    self.embed_model.encode(query_text, convert_to_tensor=True),
-                    self.embed_model.encode(c['text'], convert_to_tensor=True)
-                ).item(),
-                reverse=True
-            )
+            # contexts = sorted(
+            #     contexts,
+            #     key=lambda c: util.cos_sim(
+            #         self.embed_model.encode(query_text, convert_to_tensor=True),
+            #         self.embed_model.encode(c['text'], convert_to_tensor=True)
+            #     ).item(),
+            #     reverse=True
+            # )
 
+            query_embedding = self.embed_model.encode(query_text, convert_to_tensor=True)
+            chunk_texts = [c['text'] for c in contexts]
+            chunk_embeddings = self.embed_model.encode(chunk_texts, convert_to_tensor=True)
+            similarities = util.cos_sim(query_embedding, chunk_embeddings)[0]
+
+            for i, sim in enumerate(similarities):
+                contexts[i]["similarity"] = sim.item()
+
+            contexts = sorted(contexts, key=lambda x: x["similarity"], reverse=True)
+            
             # Add chunks until token budget is exceeded
             tokenizer = self.generator.tokenizer
             total_tokens = 0
             context_tokens = []
             selected_chunks = []
-
+            
             for chunk in contexts:
                 chunk_tokens = tokenizer.encode(chunk["text"], add_special_tokens=False)
                 if total_tokens + len(chunk_tokens) > self.max_context_tokens - 128:

@@ -13,6 +13,12 @@ logging.getLogger("pdfplumber").setLevel(logging.ERROR)
 import re
 # from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
+import nltk
+try:
+    nltk.data.find('tokenizers/punkt')
+except nltk.downloader.DownloadError:
+    nltk.download('punkt')
+from nltk.tokenize import sent_tokenize
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 class DocumentRetriever:
     def __init__(self, data_dir='Data', chunk_size=500):
@@ -44,31 +50,48 @@ class DocumentRetriever:
                     text = re.sub(r'\[\s?\d+(?:\s?,\s?\d+)*\s?\]', '', text)
                     text = re.sub(r'\(\s?\d+(?:\s?,\s?\d+)*\s?\)', '', text)
                     text = re.sub(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\.?\s*)?(?:[A-Za-z\s]+\.)?\s?\d{4};\d+\(.*?\):\d+(–\d+)?\.', '', text)
-                    words = text.split()
-                    overlap = int(self.chunk_size * 0.5)
-                    stride = self.chunk_size - overlap
-                    for i in range(0, len(words), stride):
-                        chunk_words = words[i:i + self.chunk_size]
-                        chunk_text = ' '.join(chunk_words)
-                        documents.append({
+                    sentences = sent_tokenize(text)
+                    current_chunk = ""
+                    for sentence in sentences:
+                        if len(current_chunk.split()) + len(sentence.split()) <= self.chunk_size:
+                            current_chunk += " " + sentence
+                        else:
+                            # Otherwise, finalize the current chunk and start a new one
+                            if current_chunk:
+                                documents.append({
+                                    "chunk": len(documents),
+                                    "text": current_chunk.strip(),
+                                    "pages": [page_num],
+                                    "file": path
+                                })
+                            current_chunk = sentence
+                    # Add the last remaining chunk
+                    if current_chunk:
+                         documents.append({
                             "chunk": len(documents),
-                            "text": chunk_text,
+                            "text": current_chunk.strip(),
                             "pages": [page_num],
                             "file": path
                         })
         return documents
 
     def build_index(self):
+        # if os.path.exists('faiss_index_commonly_based.idx'):
+            # print(f"Loading FAISS index...")
+            # self.index = faiss.read_index('faiss_index_commonly_based.idx')
+            # return
+        # print("Building FAISS index from scratch...")
         for pdf_path in self.pdf_paths:
             self.documents.extend(self.load_documents(pdf_path))
         cleaned_texts = [doc['text'].strip() for doc in self.documents if isinstance(doc.get('text'), str) and doc['text'].strip()]
-        cleaned_texts = [text for text in cleaned_texts if isinstance(text, str)]
         embeddings = self.embeddings.encode(cleaned_texts, convert_to_tensor=False,show_progress_bar=True,batch_size=64)
         embeddings_np = np.array(embeddings)
         dimension = embeddings_np.shape[1]
         self.index = faiss.IndexFlatL2(dimension)
         self.index.add(embeddings_np)
-    
+        # faiss.write_index(self.index, 'faiss_index_commonly_based.idx')
+        # print("FAISS index saved")
+
     def query(self, query_text, k=5):
         query_embedding = self.embeddings.encode([query_text], convert_to_tensor=False, show_progress_bar=True,batch_size=64)
         query_embedding_np = np.array(query_embedding)
